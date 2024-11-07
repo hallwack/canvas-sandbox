@@ -22,7 +22,7 @@ const Canvas: React.FC = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [currentStroke, setCurrentStroke] = useState<Point[]>([]);
-  const [fillColor, setFillColor] = useState<string>("#eeeeee");
+  const [fillColor, setFillColor] = useState<string>("#cdecde");
   const [isDragging, setIsDragging] = useState(false);
   const [draggedStrokeIndex, setDraggedStrokeIndex] = useState<number | null>(
     null,
@@ -243,6 +243,50 @@ const Canvas: React.FC = () => {
     redrawCanvas();
   }, [strokes]);
 
+  const saveAsCustomFormat = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const backgroundImage = canvas.toDataURL("image/png");
+
+    const data = JSON.stringify({ backgroundImage, strokes });
+    const blob = new Blob([data], { type: "application/json" });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "drawing.draw";
+    link.click();
+  };
+
+  const loadCustomFormat = (file: File) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      if (!e.target?.result) return;
+
+      const { backgroundImage, strokes: loadedStrokes } = JSON.parse(
+        e.target.result as string,
+      );
+      setStrokes(loadedStrokes);
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+
+      const img = new Image();
+      img.src = backgroundImage;
+      img.onload = () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        redrawCanvas();
+      };
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <div>
       <canvas
@@ -269,6 +313,17 @@ const Canvas: React.FC = () => {
           style={{ marginLeft: "10px" }}
         />
         <span>Select Fill Color</span>
+        <button onClick={saveAsCustomFormat} style={{ marginLeft: "10px" }}>
+          Save as .draw
+        </button>
+        <input
+          type="file"
+          accept=".draw"
+          onChange={(e) =>
+            e.target.files && loadCustomFormat(e.target.files[0])
+          }
+          style={{ marginLeft: "10px" }}
+        />
       </div>
     </div>
   );
